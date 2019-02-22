@@ -49,7 +49,7 @@
         "name": "VNET2",
         "type": "Microsoft.Network/virtualNetworks",
         "location": "[resourceGroup().location]",
-        "apiVersion": "2016-03-30",
+        "apiVersion": "2018-03-31",
         "dependsOn": [ ],
         "tags": {
           "displayName": "VNET2"
