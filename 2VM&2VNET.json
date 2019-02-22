@@ -1,0 +1,330 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "StorageAccount1Type": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_ZRS",
+        "Standard_GRS",
+        "Standard_RAGRS",
+        "Premium_LRS"
+      ]
+    },
+    "VM1Name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "VM1AdminUserName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "VM1AdminPassword": {
+      "type": "securestring"
+    },
+    "VM1UbuntuOSVersion": {
+      "type": "string",
+      "defaultValue": "14.04.2-LTS",
+      "allowedValues": [
+        "12.04.5-LTS",
+        "14.04.2-LTS"
+      ]
+    },
+    "StorageAccount2Type": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_ZRS",
+        "Standard_GRS",
+        "Standard_RAGRS",
+        "Premium_LRS"
+      ]
+    },
+    "VM2Name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "VM2AdminUserName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "VM2AdminPassword": {
+      "type": "securestring"
+    },
+    "VM2WindowsOSVersion": {
+      "type": "string",
+      "defaultValue": "2012-R2-Datacenter",
+      "allowedValues": [
+        "2008-R2-SP1",
+        "2012-Datacenter",
+        "2012-R2-Datacenter",
+        "Windows-Server-Technical-Preview"
+      ]
+    }},
+  "variables": {
+    "StorageAccount1Name": "[concat('StorageAccount1', uniqueString(resourceGroup().id))]",
+    "Vnet1Prefix": "10.0.0.0/16",
+    "Vnet1Subnet1Name": "Subnet-1",
+    "Vnet1Subnet1Prefix": "10.0.0.0/24",
+    "Vnet1Subnet2Name": "Subnet-2",
+    "Vnet1Subnet2Prefix": "10.0.1.0/24",
+    "VM1ImagePublisher": "Canonical",
+    "VM1ImageOffer": "UbuntuServer",
+    "VM1OSDiskName": "VM1OSDisk",
+    "VM1VmSize": "Standard_D2_v2",
+    "VM1VnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'Vnet1')]",
+    "VM1SubnetRef": "[concat(variables('VM1VnetID'), '/subnets/', variables('Vnet1Subnet1Name'))]",
+    "VM1StorageAccountContainerName": "vhds",
+    "VM1NicName": "[concat(parameters('VM1Name'), 'NetworkInterface')]",
+    "Vnet2Prefix": "10.0.0.0/16",
+    "Vnet2Subnet1Name": "Subnet-1",
+    "Vnet2Subnet1Prefix": "10.0.0.0/24",
+    "Vnet2Subnet2Name": "Subnet-2",
+    "Vnet2Subnet2Prefix": "10.0.1.0/24",
+    "StorageAccount2Name": "[concat('StorageAccount2', uniqueString(resourceGroup().id))]",
+    "VM2ImagePublisher": "MicrosoftWindowsServer",
+    "VM2ImageOffer": "WindowsServer",
+    "VM2OSDiskName": "VM2OSDisk",
+    "VM2VmSize": "Standard_D2_v2",
+    "VM2VnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'Vnet2')]",
+    "VM2SubnetRef": "[concat(variables('VM2VnetID'), '/subnets/', variables('Vnet2Subnet1Name'))]",
+    "VM2StorageAccountContainerName": "vhds",
+    "VM2NicName": "[concat(parameters('VM2Name'), 'NetworkInterface')]"},
+  "resources": [
+    {
+      "name": "[variables('StorageAccount1Name')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-01-01",
+      "sku": {
+        "name": "[parameters('StorageAccount1Type')]"
+      },
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "StorageAccount1"
+      },
+      "kind": "Storage"
+    },
+    {
+      "name": "Vnet1",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "Vnet1"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('Vnet1Prefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('Vnet1Subnet1Name')]",
+            "properties": {
+              "addressPrefix": "[variables('Vnet1Subnet1Prefix')]"
+            }
+          },
+          {
+            "name": "[variables('Vnet1Subnet2Name')]",
+            "properties": {
+              "addressPrefix": "[variables('Vnet1Subnet2Prefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('VM1NicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', 'Vnet1')]"
+      ],
+      "tags": {
+        "displayName": "VM1Nic"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('VM1SubnetRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('VM1Name')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccount1Name'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('VM1NicName'))]"
+      ],
+      "tags": {
+        "displayName": "VM1"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('VM1VmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('VM1Name')]",
+          "adminUsername": "[parameters('VM1AdminUsername')]",
+          "adminPassword": "[parameters('VM1AdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('VM1ImagePublisher')]",
+            "offer": "[variables('VM1ImageOffer')]",
+            "sku": "[parameters('VM1UbuntuOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "VM1OSDisk",
+            "vhd": {
+              "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccount1Name')), '2016-01-01').primaryEndpoints.blob, variables('VM1StorageAccountContainerName'), '/', variables('VM1OSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('VM1NicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Vnet2",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "Vnet2"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('Vnet2Prefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('Vnet2Subnet1Name')]",
+            "properties": {
+              "addressPrefix": "[variables('Vnet2Subnet1Prefix')]"
+            }
+          },
+          {
+            "name": "[variables('Vnet2Subnet2Name')]",
+            "properties": {
+              "addressPrefix": "[variables('Vnet2Subnet2Prefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('StorageAccount2Name')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-01-01",
+      "sku": {
+        "name": "[parameters('StorageAccount2Type')]"
+      },
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "StorageAccount2"
+      },
+      "kind": "Storage"
+    },
+    {
+      "name": "[variables('VM2NicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', 'Vnet2')]"
+      ],
+      "tags": {
+        "displayName": "VM2Nic"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('VM2SubnetRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('VM2Name')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccount2Name'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('VM2NicName'))]"
+      ],
+      "tags": {
+        "displayName": "VM2"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('VM2VmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('VM2Name')]",
+          "adminUsername": "[parameters('VM2AdminUsername')]",
+          "adminPassword": "[parameters('VM2AdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('VM2ImagePublisher')]",
+            "offer": "[variables('VM2ImageOffer')]",
+            "sku": "[parameters('VM2WindowsOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "VM2OSDisk",
+            "vhd": {
+              "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccount2Name')), '2016-01-01').primaryEndpoints.blob, variables('VM2StorageAccountContainerName'), '/', variables('VM2OSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('VM2NicName'))]"
+            }
+          ]
+        }
+      }
+    }],
+  "outputs": {}
+}
